@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Roslyn source generator for CodeBrix.TomlParse: it emits TomlTypeInfo metadata for every
+    TomlSerializerContext marked with [TomlSerializable], which is the trimming / NativeAOT-safe
+    serialization path.
+
+    This project is NOT its own NuGet package: the built DLL is packed into the
+    CodeBrix.TomlParse.BsdLicenseForever package under analyzers/dotnet/cs (see the packaging
+    target in CodeBrix.TomlParse.csproj).
+
+    netstandard2.0 is mandatory here and is the family-sanctioned exception to net10-only: a
+    Roslyn generator is loaded by the compiler/IDE host, not by the consuming application, and
+    those hosts load netstandard2.0 assemblies.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- netstandard2.0 defaults to C# 7.3; the generator source needs a modern language
+         version. This affects only what the SDK compiler accepts here, not which Roslyn host
+         can load the result (that is the package floor below). -->
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>CodeBrix.TomlParse.SourceGeneration</AssemblyName>
+    <RootNamespace>CodeBrix.TomlParse.SourceGeneration</RootNamespace>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>false</IsPackable>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- This is the SHIPPED generator, so this version is the Roslyn HOST FLOOR: a generator
+         cannot load in a compiler or IDE older than the Microsoft.CodeAnalysis it was compiled
+         against. 5.9.0 is the compiler that ships in .NET SDK 10.0.400 - the same floor as the
+         CodeBrix.Redis analyzers. Move this only deliberately: raising it drops older consumer
+         tooling. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" PrivateAssets="all" />
+    <!-- Build-time only, never shipped: its version has nothing to do with the host floor. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
+    <!-- The generator reads System.Text.Json naming policies at compile time; the compiler host
+         already loads System.Text.Json, so this is a compile-time reference only. -->
+    <PackageReference Include="System.Text.Json" Version="10.0.12" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Analyzer release tracking (RS2008): every TOMLPARSE diagnostic the generator reports is
+         listed here. Move rows from Unshipped to Shipped when a package carrying them publishes. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
+
+</Project>

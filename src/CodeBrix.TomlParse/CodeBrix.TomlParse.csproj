@@ -1,0 +1,122 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>CodeBrix.TomlParse</AssemblyName>
+    <RootNamespace>CodeBrix.TomlParse</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
+  <!--
+    Package / assembly version: date-stamped and auto-incrementing.
+
+    Format:  1.<x>.<y>.<z>   (every field is derived from UTC "now")
+
+      1  (major)     Always 1 for this library.
+      x  (minor)     Whole years since $(_VersionBaseYear).
+                     With base 2026: 2026=0, 2027=1, 2028=2, ...
+      y  (build)     Day of year, 1-based inclusive, UTC.
+                     Jan 1 = 1, Feb 1 = 32, Dec 31 = 365 (366 in a leap year).
+      z  (revision)  Minute of day, UTC, range 0 to 1439.
+                     00:00 = 0, 23:59 = 1439.
+
+    The version is always strictly increasing over time:
+      * within a day, z grows;
+      * at a day boundary, y increments and outranks z resetting to 0;
+      * at a (UTC) year boundary, x increments and outranks y and z resetting.
+
+    Notes / caveats:
+      * All fields read from System.DateTime.UtcNow, so a local dev build and a
+        UTC CI build agree on the value. Math.Floor on the minutes keeps z in
+        0..1439 (plain rounding could land on 1440 late in the day).
+      * Because the value depends on the clock, every build produces a NEW
+        version. With GeneratePackageOnBuild=true that means a fresh .nupkg on
+        each build, and two builds in the SAME UTC minute produce the SAME
+        version (so do not publish two packages from within one minute).
+      * This is date-stamp versioning, not SemVer: minor encodes the year and
+        major is pinned to 1, so major/minor do not signal API compatibility.
+      * To re-baseline the minor number, change _VersionBaseYear below.
+  -->
+  <PropertyGroup>
+    <_VersionBaseYear>2026</_VersionBaseYear>
+    <_VersionYears>$([MSBuild]::Subtract($([System.DateTime]::UtcNow.Year), $(_VersionBaseYear)))</_VersionYears>
+    <_VersionDayOfYear>$([System.DateTime]::UtcNow.DayOfYear)</_VersionDayOfYear>
+    <_VersionMinuteOfDay>$([System.Convert]::ToInt32($([System.Math]::Floor($([System.DateTime]::UtcNow.TimeOfDay.TotalMinutes)))))</_VersionMinuteOfDay>
+    <BuildVersion>1.$(_VersionYears).$(_VersionDayOfYear).$(_VersionMinuteOfDay)</BuildVersion>
+    <Version>$(BuildVersion)</Version>
+    <AssemblyVersion>$(BuildVersion)</AssemblyVersion>
+    <FileVersion>$(BuildVersion)</FileVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>CodeBrix.TomlParse.BsdLicenseForever</PackageId>
+    <Product>CodeBrix.TomlParse</Product>
+    <Title>CodeBrix.TomlParse</Title>
+    <Authors>Jeremy Ellis</Authors>
+    <Description>A fully managed, high-performance TOML 1.1 library for .NET: read, parse, update and create .toml files. A lossless, round-trippable syntax tree, an untyped TomlTable document model, and a System.Text.Json-style object serializer with attributes, converters, polymorphism and precise error locations. A source generator for trimming and NativeAOT ships inside the package.</Description>
+    <PackageLicenseExpression>BSD-2-Clause</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/ellisnet/CodeBrix.TomlParse</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ellisnet/CodeBrix.TomlParse</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon-codebrix-128.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright (c) 2026 Jeremy Ellis and contributors</Copyright>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <IsPackable>true</IsPackable>
+    <PackageTags>toml;parser;serialization;deserialization;configuration;syntax-tree;source-generator;nativeaot;CodeBrix</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon-codebrix-128.png" Pack="true" PackagePath="" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="" />
+    <None Include="..\..\AGENT-README.txt" Pack="true" PackagePath="" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="" />
+    <!-- NuGet auto-imports buildTransitive/<PackageId>.targets into every consuming project
+         (and their consumers). It wires the NativeAOT feature switch - see the file. The file is
+         named for the PackageId, not the assembly, because that is what NuGet looks for. -->
+    <None Include="buildTransitive\CodeBrix.TomlParse.BsdLicenseForever.targets" Pack="true" PackagePath="buildTransitive\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lets the trimmer stub out reflection-based serialization when a consumer publishes with
+         NativeAOT (feature switch CodeBrix.TomlParse.TomlSerializer.IsReflectionEnabledByDefault). -->
+    <EmbeddedResource Include="ILLink.Substitutions.xml" LogicalName="ILLink.Substitutions.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The source generator is a build-time tool for this project, not a runtime dependency:
+         ReferenceOutputAssembly=false. It is shipped to consumers by the packaging target below. -->
+    <ProjectReference Include="..\CodeBrix.TomlParse.SourceGeneration\CodeBrix.TomlParse.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    Ship CodeBrix.TomlParse.SourceGeneration as the package's analyzer, so a consumer's
+    [TomlSerializable] TomlSerializerContext types get their generated metadata.
+    analyzers/dotnet/cs is the conventional path and applies to every consumer target framework.
+    Roslyn itself is PrivateAssets="all" in the generator project, so it is not carried along -
+    the compiler host supplies it.
+
+    The path is asked of the project rather than assembled from bin/$(Configuration), so that a
+    change to the output layout cannot quietly produce a package with no generator in it. The
+    existence check is the point: packing without having built it is otherwise a silent
+    omission, and the failure mode downstream (no generated code, ever, for any consumer) is
+    invisible.
+  -->
+  <Target Name="_ResolveCodeBrixTomlParseGeneratorForPackaging" BeforeTargets="_GetPackageFiles">
+    <MSBuild Projects="..\CodeBrix.TomlParse.SourceGeneration\CodeBrix.TomlParse.SourceGeneration.csproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration);TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_CodeBrixTomlParseGeneratorAssembly" />
+    </MSBuild>
+
+    <Error Condition="'@(_CodeBrixTomlParseGeneratorAssembly)' == ''" Text="Could not resolve the CodeBrix.TomlParse.SourceGeneration output; the package would ship without its source generator." />
+    <Error Condition="!Exists('%(_CodeBrixTomlParseGeneratorAssembly.FullPath)')" Text="The CodeBrix.TomlParse.SourceGeneration generator has not been built (%(_CodeBrixTomlParseGeneratorAssembly.FullPath)); build it before packing." />
+
+    <ItemGroup>
+      <!-- no trailing separator: these items are absolute paths, and NuGet appends one itself -->
+      <None Include="@(_CodeBrixTomlParseGeneratorAssembly)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+  </Target>
+
+</Project>

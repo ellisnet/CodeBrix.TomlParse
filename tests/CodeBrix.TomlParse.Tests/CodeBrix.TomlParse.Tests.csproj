@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CodeBrix.TomlParse\CodeBrix.TomlParse.csproj" />
+    <!-- Two roles: OutputItemType=Analyzer runs the source generator over the [TomlSerializable]
+         contexts declared in this test project, and ReferenceOutputAssembly=true lets
+         SourceGenerationDiagnosticsTests drive the generator directly through a Roslyn
+         CSharpGeneratorDriver. -->
+    <ProjectReference Include="..\..\src\CodeBrix.TomlParse.SourceGeneration\CodeBrix.TomlParse.SourceGeneration.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+    <PackageReference Include="SilverAssertions.ApacheLicenseForever" Version="1.0.248.1071" />
+    <!-- SourceGenerationDiagnosticsTests compiles snippets in-process to exercise the generator's
+         TOMLPARSE diagnostics. Same version as the generator's own reference. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The toml-test conformance corpus (MIT - see TestFiles/toml-test/LICENSE and
+         THIRD-PARTY-NOTICES.txt), copied next to the test assembly so the suite never reads
+         anything outside this repository. -->
+    <None Include="TestFiles\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
