@@ -1153,6 +1153,11 @@ internal sealed class TomlUntypedObjectConverter : TomlConverter
                 continue;
             }
 
+            if (reader.Options.DuplicateKeyHandling == TomlDuplicateKeyHandling.Error && table.ContainsKey(name))
+            {
+                throw reader.CreateException($"Duplicate key '{name}' was encountered.");
+            }
+
             table[name] = ReadValue(reader);
         }
 
