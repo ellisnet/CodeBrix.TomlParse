@@ -38,7 +38,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" PrivateAssets="all" />
     <!-- The generator reads System.Text.Json naming policies at compile time; the compiler host
          already loads System.Text.Json, so this is a compile-time reference only. -->
-    <PackageReference Include="System.Text.Json" Version="10.0.12" PrivateAssets="all" />
+    <PackageReference Include="System.Text.Json" Version="10.0.15" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
